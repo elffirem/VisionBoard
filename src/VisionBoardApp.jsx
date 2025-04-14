@@ -1,28 +1,32 @@
 import React, { useState, useEffect } from "react";
 import { toPng } from "html-to-image";
 
-/** 
- * 1) VisionBoardApp -> Tüm adımlar:
- *    start -> category -> gender -> loading -> gallery -> final
- *    final: JustifiedCollage, leftoverSticker approach
+/**
+ * Tüm adımlar:
+ * start -> category -> gender -> loading -> gallery -> final
+ * 
+ * - Her sayfada geri butonu 
+ * - Category butonlarının sabit boyutu
+ * - Gender ekranı tam ortalı (vertical & horizontal)
+ * - Finalde phone: 720×1280, laptop: 1920×1080
+ * - Justified collage with leftover 'sticker' approach
  */
 export default function VisionBoardApp() {
   const [step, setStep] = useState("start");
 
-  // Kategori, cinsiyet, fetch results
+  // Pexels fetch data
+  const [items, setItems] = useState([]);
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [gender, setGender] = useState(null);
-  const [items, setItems] = useState([]);
   const [loadingImages, setLoadingImages] = useState(false);
 
-  // Kullanıcının seçtiği resimler
+  // Kullanıcının seçtiği görseller
   const [selectedImages, setSelectedImages] = useState([]);
-  const MIN_IMAGES = 8; // En az 8 resim
+  const MIN_IMAGES = 8; // en az 8 resim
 
-  // Device boyutu: phone/laptop
+  // Final -> phone/laptop
   const [deviceSize, setDeviceSize] = useState("phone");
 
-  // SynonymsMap (kısaltılmış)
  // Kategorileriniz
  const categories = [
   "💪 Health", "❤️ Love", "✈️ Travel", "💼 Career", "🏋 Fitness",
@@ -33,6 +37,8 @@ export default function VisionBoardApp() {
   "🧑‍💼 Leadership", "⚡ Power", " Minimalism", "⚖️ Balance"
 ];
 
+// Gender
+const genders = ["Male", "Female", "Rather not say"];
 
 // Synonyms Map (her kategori için 5 kelime), tam liste
 const synonymsMap = {
@@ -66,10 +72,25 @@ const synonymsMap = {
   Power: ["power", "strength", "force", "might", "influence"],
   Minimalism: ["minimalism", "simplicity", "declutter", "essentialism", "clean design"],
   Balance: ["balance", "equilibrium", "stability", "harmony", "moderation"]
-};
+}
 
-  // Gender
-  const genders = ["Male", "Female", "Rather not say"];
+  // Tüm sayfalarda back butonu
+  function goBack() {
+    if (step === "start") {
+      // Start'ta tıklayınca yine start
+      setStep("start");
+    } else if (step === "category") {
+      setStep("start");
+    } else if (step === "gender") {
+      setStep("category");
+    } else if (step === "loading") {
+      setStep("gender");
+    } else if (step === "gallery") {
+      setStep("loading");
+    } else if (step === "final") {
+      setStep("gallery");
+    }
+  }
 
   // STEPS
   function handleStartToCategory() {
@@ -85,20 +106,22 @@ const synonymsMap = {
       setStep("gallery");
     }, 2000);
   }
+
+  // Pexels fetch
   async function fetchImagesFromPexels() {
     setLoadingImages(true);
-    const apiKey = "62YEs67oU6gyFvBpmSndP4PCz5UnGgipmm1F7HXSqfLyh16OYBXA9rjG"; 
+    const apiKey = "62YEs67oU6gyFvBpmSndP4PCz5UnGgipmm1F7HXSqfLyh16OYBXA9rjG"; // Buraya kendi Pexels API Key'inizi koyun
     const fetched = [];
 
     for (const rawCat of selectedCategories) {
       const clean = rawCat.replace(/^[^a-zA-Z]+/, "").trim();
       const synonyms = synonymsMap[clean] || [clean];
-
       let finalImages = [];
-      for (const word of synonyms) {
-        let query = word;
+
+      for (const w of synonyms) {
+        let query = w;
         if (gender === "Male" || gender === "Female") {
-          query = `${gender.toLowerCase()} ${word}`;
+          query = `${gender.toLowerCase()} ${w}`;
         }
         try {
           const resp = await fetch(
@@ -121,7 +144,16 @@ const synonymsMap = {
     setLoadingImages(false);
   }
 
-  // Gallery -> Final
+  // Kategori butonu tıklama
+  function toggleCategory(cat) {
+    if (selectedCategories.includes(cat)) {
+      setSelectedCategories(selectedCategories.filter((x) => x !== cat));
+    } else {
+      setSelectedCategories([...selectedCategories, cat]);
+    }
+  }
+
+  // Gallery -> final
   function handleGalleryContinue() {
     if (selectedImages.length < MIN_IMAGES) {
       alert(`Please select at least ${MIN_IMAGES} images.`);
@@ -130,44 +162,28 @@ const synonymsMap = {
     setStep("final");
   }
 
-  // Kategori seçimi
-  function toggleCategory(cat) {
-    if (selectedCategories.includes(cat)) {
-      setSelectedCategories(selectedCategories.filter((c) => c !== cat));
+  // Görsel ekle/çıkar
+  function handleImageClick(url) {
+    if (selectedImages.includes(url)) {
+      setSelectedImages(selectedImages.filter((x) => x !== url));
     } else {
-      setSelectedCategories([...selectedCategories, cat]);
-    }
-  }
-
-  // Resim tıklama -> ekle/çıkar
-  function handleImageClick(imgUrl) {
-    if (selectedImages.includes(imgUrl)) {
-      setSelectedImages(selectedImages.filter((x) => x !== imgUrl));
-    } else {
-      setSelectedImages([...selectedImages, imgUrl]);
+      setSelectedImages([...selectedImages, url]);
     }
   }
 
   return (
-    <div className="min-h-screen bg-[#0F0F0F] text-[#f9f9f9] font-serif">
+    <div className="min-h-screen bg-[#0F0F0F] text-[#f9f9f9] font-serif relative">
 
-      {/* Geri butonu: 
-          start, gallery, final aşamalarında yok 
-          diğer adımlarda var */}
-      {step !== "start" && step !== "gallery" && step !== "final" && (
-        <button
-          onClick={() => {
-            if (step === "category") setStep("start");
-            else if (step === "gender") setStep("category");
-          }}
-          className="absolute top-6 left-6 text-white text-2xl bg-black/40 p-2 rounded-full hover:bg-black/60"
-        >
-          ←
-        </button>
-      )}
+      {/* BACK BUTONU => her sayfada */}
+      <button
+        onClick={goBack}
+        className="absolute top-6 left-6 text-white text-2xl bg-black/40 p-2 rounded-full hover:bg-black/60"
+      >
+        ←
+      </button>
 
       {/* 1) START */}
-      {step === "start" && (
+      {step==="start" && (
         <section className="h-screen flex flex-col justify-center items-center text-center px-4 bg-[url('https://images.unsplash.com/photo-1612832021234-75e32657bcb4?ixlib=rb-4.0.3&auto=format&fit=crop&w=1950&q=80')] bg-cover bg-center relative">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
           <div className="relative z-10 w-full flex flex-col items-center">
@@ -193,7 +209,7 @@ const synonymsMap = {
       )}
 
       {/* 2) CATEGORY */}
-      {step === "category" && (
+      {step==="category" && (
         <section className="px-6 py-24 max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-5xl font-light text-[#f6e7d7] tracking-wide uppercase">
@@ -204,12 +220,13 @@ const synonymsMap = {
             </p>
           </div>
 
+          {/* Kategori sabit boyut butonlar => w-32 h-12 */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 justify-items-center mb-16">
-            {categories.map((cat, i) => (
+            {categories.map((cat, i)=> (
               <button
                 key={i}
-                onClick={() => toggleCategory(cat)}
-                className={`px-5 py-3 text-sm rounded-full border transition-all duration-300 ${
+                onClick={()=> toggleCategory(cat)}
+                className={`w-32 h-12 text-sm rounded-full border transition-all duration-300 flex items-center justify-center ${
                   selectedCategories.includes(cat)
                     ? "bg-[#C8B560] text-black border-[#C8B560] shadow-md"
                     : "bg-transparent border-[#777] text-[#f9f9f9] hover:border-[#C8B560] hover:text-[#C8B560]"
@@ -232,41 +249,37 @@ const synonymsMap = {
       )}
 
       {/* 3) GENDER */}
-      {step === "gender" && (
-        <section className="px-6 py-24 max-w-7xl mx-auto">
-          <div className="text-center mb-12">
-            <h3 className="text-3xl font-light text-[#f6e7d7] mb-6">
-              Select Your Gender
-            </h3>
-            <div className="flex flex-wrap justify-center gap-6">
-              {genders.map((g, i) => (
-                <button
-                  key={i}
-                  onClick={() => setGender(g)}
-                  className={`px-6 py-3 text-sm rounded-full border transition-all duration-300 ${
-                    gender === g
-                      ? "bg-[#C8B560] text-black border-[#C8B560] shadow-md"
-                      : "bg-transparent border-[#777] text-[#f9f9f9] hover:border-[#C8B560] hover:text-[#C8B560]"
-                  }`}
-                >
-                  {g}
-                </button>
-              ))}
-            </div>
-            <div className="mt-12">
+      {step==="gender" && (
+        <section className="h-screen flex flex-col items-center justify-center text-center px-4">
+          <h3 className="text-3xl font-light text-[#f6e7d7] mb-6">
+            Select Your Gender
+          </h3>
+          <div className="flex flex-wrap justify-center gap-6 mb-8">
+            {genders.map((g, i)=> (
               <button
-                onClick={handleNextStep}
-                className="px-10 py-4 bg-gradient-to-r from-[#C8B560] to-[#FDE8B3] text-black rounded-full text-lg font-semibold hover:opacity-90 transition"
+                key={i}
+                onClick={()=> setGender(g)}
+                className={`px-6 py-3 text-sm rounded-full border transition-all duration-300 ${
+                  gender===g
+                    ? "bg-[#C8B560] text-black border-[#C8B560] shadow-md"
+                    : "bg-transparent border-[#777] text-[#f9f9f9] hover:border-[#C8B560] hover:text-[#C8B560]"
+                }`}
               >
-                Continue
+                {g}
               </button>
-            </div>
+            ))}
           </div>
+          <button
+            onClick={handleNextStep}
+            className="px-10 py-4 bg-gradient-to-r from-[#C8B560] to-[#FDE8B3] text-black rounded-full text-lg font-semibold hover:opacity-90 transition"
+          >
+            Continue
+          </button>
         </section>
       )}
 
       {/* 4) LOADING */}
-      {step === "loading" && (
+      {step==="loading" && (
         <section className="h-screen flex flex-col justify-center items-center text-center px-4">
           <h2 className="text-4xl text-[#f6e7d7] font-light mb-4 animate-pulse">
             Collecting your dreams...
@@ -278,7 +291,7 @@ const synonymsMap = {
       )}
 
       {/* 5) GALLERY */}
-      {step === "gallery" && (
+      {step==="gallery" && (
         <section className="min-h-screen flex flex-col items-center text-center px-4">
           <h2 className="text-5xl font-light text-[#f6e7d7] mb-10 mt-8">
             Your Vision Board
@@ -290,23 +303,25 @@ const synonymsMap = {
             </p>
           ) : (
             <div className="w-full max-w-4xl">
-              {items.length === 0 ? (
-                <p className="text-lg italic">No images found. (Try other categories?)</p>
+              {items.length===0 ? (
+                <p className="text-lg italic">
+                  No images found. (Try other categories?)
+                </p>
               ) : (
                 <ul className="space-y-10">
-                  {items.map((item, catIndex) => (
+                  {items.map((item, catIndex)=> (
                     <li key={catIndex}>
                       <h3 className="text-sm text-[#C8B560] font-semibold mb-3">
                         {item.text}
                       </h3>
-                      {item.images && item.images.length > 0 ? (
+                      {item.images && item.images.length>0 ? (
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                          {item.images.map((imgUrl, imgIndex) => {
+                          {item.images.map((imgUrl, imgIndex)=> {
                             const isSelected = selectedImages.includes(imgUrl);
                             return (
                               <div
                                 key={imgIndex}
-                                onClick={() => handleImageClick(imgUrl)}
+                                onClick={()=>handleImageClick(imgUrl)}
                                 className="relative cursor-pointer"
                               >
                                 <img
@@ -334,10 +349,11 @@ const synonymsMap = {
               )}
             </div>
           )}
+
           <div className="mt-10 mb-12">
             <button
-              onClick={() => {
-                if (selectedImages.length < MIN_IMAGES) {
+              onClick={()=>{
+                if (selectedImages.length<MIN_IMAGES) {
                   alert(`Please select at least ${MIN_IMAGES} images.`);
                   return;
                 }
@@ -352,13 +368,13 @@ const synonymsMap = {
       )}
 
       {/* 6) FINAL */}
-      {step === "final" && (
+      {step==="final" && (
         <FinalCollage
           selectedImages={selectedImages}
           deviceSize={deviceSize}
           setDeviceSize={setDeviceSize}
           minImages={MIN_IMAGES}
-          backToGallery={() => setStep("gallery")}
+          goBack={goBack}
         />
       )}
     </div>
@@ -366,38 +382,39 @@ const synonymsMap = {
 }
 
 /** 
- * FinalCollage -> 
- *  - phone/laptop 
- *  - JustifiedCollage with leftover sticker
- *  - back button
+ * FinalCollage
+ * - phone => 720×1280
+ * - laptop => 1920×1080
+ * - leftover sticker approach
  */
-function FinalCollage({ selectedImages, deviceSize, setDeviceSize, minImages, backToGallery }) {
+function FinalCollage({ selectedImages, deviceSize, setDeviceSize, minImages, goBack }) {
   if (selectedImages.length < minImages) {
     return (
-      <section className="min-h-screen px-6 py-16 bg-[#0F0F0F] text-white text-center">
+      <section className="min-h-screen px-6 py-16 bg-[#0F0F0F] text-white text-center relative">
+        <button
+          onClick={goBack}
+          className="absolute top-6 left-6 text-white text-2xl bg-black/40 p-2 rounded-full hover:bg-black/60"
+        >
+          ←
+        </button>
         <h2 className="text-4xl text-[#f6e7d7] font-light mb-6">
           Your Vision Board
         </h2>
         <p className="text-lg text-[#ccc]">
-          You have fewer than {minImages} images selected. Please go back.
+          You have fewer than {minImages} images selected.
         </p>
-        <button
-          onClick={backToGallery}
-          className="mt-6 px-8 py-3 bg-gradient-to-r from-[#C8B560] to-[#FDE8B3] text-black rounded-full font-semibold hover:opacity-90"
-        >
-          Go Back
-        </button>
       </section>
     );
   }
 
-  const containerWidth = (deviceSize === "phone") ? 720 : 1280;
+  // phone => 720 wide, 1280
+  // laptop => 1920 wide, 1080
+  const containerWidth = deviceSize==="phone" ? 720 : 1920;
 
   function handleDownloadCollage() {
-    // Bekle
-    setTimeout(() => {
+    setTimeout(()=>{
       const node = document.getElementById("justified-collage-container");
-      toPng(node).then((dataUrl) => {
+      toPng(node).then((dataUrl)=>{
         const link = document.createElement("a");
         link.download = "vision-board-collage.png";
         link.href = dataUrl;
@@ -408,9 +425,9 @@ function FinalCollage({ selectedImages, deviceSize, setDeviceSize, minImages, ba
 
   return (
     <section className="min-h-screen bg-[#0F0F0F] text-white px-6 py-16 relative">
-      {/* Geri butonu */}
+      {/* back */}
       <button
-        onClick={backToGallery}
+        onClick={goBack}
         className="absolute top-6 left-6 text-white text-2xl bg-black/40 p-2 rounded-full hover:bg-black/60"
       >
         ←
@@ -420,15 +437,14 @@ function FinalCollage({ selectedImages, deviceSize, setDeviceSize, minImages, ba
         Your Vision Board
       </h2>
 
-      {/* phone / laptop seçimi */}
       <div className="flex items-center justify-center gap-6 mb-8">
         <label className="flex items-center gap-2">
           <input
             type="radio"
             name="deviceSize"
             value="phone"
-            checked={deviceSize === "phone"}
-            onChange={() => setDeviceSize("phone")}
+            checked={deviceSize==="phone"}
+            onChange={()=> setDeviceSize("phone")}
           />
           <span className="text-sm">Phone (720×1280)</span>
         </label>
@@ -437,14 +453,13 @@ function FinalCollage({ selectedImages, deviceSize, setDeviceSize, minImages, ba
             type="radio"
             name="deviceSize"
             value="laptop"
-            checked={deviceSize === "laptop"}
-            onChange={() => setDeviceSize("laptop")}
+            checked={deviceSize==="laptop"}
+            onChange={()=> setDeviceSize("laptop")}
           />
-          <span className="text-sm">Laptop (1280×800)</span>
+          <span className="text-sm">Laptop (1920×1080)</span>
         </label>
       </div>
 
-      {/* Justified Collage */}
       <div id="justified-collage-container">
         <JustifiedCollage
           images={selectedImages}
@@ -466,112 +481,101 @@ function FinalCollage({ selectedImages, deviceSize, setDeviceSize, minImages, ba
   );
 }
 
-/**
+/** 
  * JustifiedCollage:
- *  - Ekrana satır satır resimleri yerleştirir, 
- *  - Kalan boşluk > 80 px ise ufak sticker ekler
+ * leftover sticker approach
  */
 function JustifiedCollage({ images, containerWidth, targetRowHeight=250, rowSpacing=2 }) {
-  const [photoData, setPhotoData] = useState([]); 
+  const [photoData, setPhotoData] = useState([]);
   const [loaded, setLoaded] = useState(false);
 
-  useEffect(() => {
-    let isMounted = true;
-    async function loadRatios() {
-      const results = [];
-      for (const url of images) {
-        const r = await getImageRatio(url);
-        results.push({ url, ratio: r });
+  useEffect(()=>{
+    let isMounted=true;
+    async function loadRatios(){
+      const arr=[];
+      for(const url of images) {
+        const r= await getImageRatio(url);
+        arr.push({ url, ratio:r });
       }
-      if (isMounted) {
-        setPhotoData(results);
+      if(isMounted){
+        setPhotoData(arr);
         setLoaded(true);
       }
     }
     loadRatios();
-    return () => { isMounted = false; };
+    return ()=>{ isMounted=false; };
   }, [images]);
 
-  if (!loaded) {
+  if(!loaded){
     return <p className="text-center text-[#ccc] italic">Loading collage data...</p>;
   }
 
-  // satırlar
   const rows = buildJustifiedRowsWithSticker(photoData, containerWidth, targetRowHeight);
 
   return (
-    <div style={{ width: containerWidth, margin: "0 auto" }}>
-      {rows.map((row, rowIndex) => (
+    <div style={{ width: containerWidth, margin:"0 auto" }}>
+      {rows.map((row, idx)=> (
         <div
-          key={rowIndex}
+          key={idx}
           style={{
-            display: "flex",
-            flexDirection: "row",
-            marginBottom: rowIndex < rows.length - 1 ? rowSpacing : 0
+            display:"flex",
+            flexDirection:"row",
+            marginBottom: idx<rows.length-1 ? rowSpacing :0
           }}
         >
-          {row.map((item, i) => {
-            if (item.type === "photo") {
+          {row.map((item, i)=> {
+            if(item.type==="photo") {
               return (
-                <div
-                  key={i}
+                <div key={i}
                   style={{
-                    width: item.finalWidth + "px",
-                    height: item.finalHeight + "px",
+                    width: item.finalWidth+"px",
+                    height: item.finalHeight+"px",
                     overflow:"hidden"
                   }}
                 >
                   <img
                     src={item.url}
                     alt=""
-                    style={{
-                      width:"100%",
-                      height:"100%",
-                      objectFit:"cover"
-                    }}
+                    style={{ width:"100%", height:"100%", objectFit:"cover" }}
                   />
                 </div>
               );
-            } else if (item.type === "sticker") {
-              // altın degrade mini kart - el yazısı
+            } else if(item.type==="sticker") {
               return (
                 <div
                   key={i}
                   style={{
-                    width: item.finalWidth + "px",
-                    height: item.finalHeight + "px",
-                    position: "relative",
-                    backgroundColor: "#0F0F0F", // arkası siyah kalsın
+                    width: item.finalWidth+"px",
+                    height: item.finalHeight+"px",
+                    position:"relative",
+                    backgroundColor:"#0F0F0F"
                   }}
                 >
-                  {/* post-it boyutu sabit 120x120. 
-                      Ortada, hafif dönük, degrade border vb. */}
+                  {/* post-it ~120x120 ortalanmis, hafif rotate */}
                   <div
                     style={{
-                      width: "120px",
-                      height: "120px",
-                      position: "absolute",
-                      left: (item.finalWidth - 120)/2 + "px",
-                      top: (item.finalHeight - 120)/2 + "px",
-                      background: "linear-gradient(to bottom right, #FFFAD5, #FDE8B3)",
-                      border: "3px solid #C8B560",
-                      borderRadius: "10px",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      transform: "rotate(-5deg)",
-                      boxShadow: "2px 2px 6px rgba(0,0,0,0.3)"
+                      width:"120px", height:"120px",
+                      position:"absolute",
+                      left: (item.finalWidth-120)/2+"px",
+                      top: (item.finalHeight-120)/2+"px",
+                      background:"linear-gradient(to bottom right, #FFFAD5, #FDE8B3)",
+                      border:"3px solid #C8B560",
+                      borderRadius:"10px",
+                      display:"flex",
+                      alignItems:"center",
+                      justifyContent:"center",
+                      transform:"rotate(-5deg)",
+                      boxShadow:"2px 2px 6px rgba(0,0,0,0.3)"
                     }}
                   >
                     <p
                       style={{
-                        margin: 0,
-                        fontSize: "16px",
-                        color: "#000",
-                        fontFamily: "'Dancing Script', cursive", 
-                        // el yazısı stili (Google Fonts: Dancing Script vs.)
-                        textAlign: "center",
-                        padding: "5px"
+                        margin:0,
+                        fontSize:"16px",
+                        color:"#000",
+                        fontFamily:"'Dancing Script', cursive",
+                        textAlign:"center",
+                        padding:"5px"
                       }}
                     >
                       You got this!
@@ -589,25 +593,21 @@ function JustifiedCollage({ images, containerWidth, targetRowHeight=250, rowSpac
 
 /** 
  * buildJustifiedRowsWithSticker:
- *  - normal row doldurma
- *  - leftoverSpace > 80 => ek type=sticker, width= leftoverSpace, finalHeight= rowHeight 
- *    ama sticker'ı sabit 120 wide, gerisi siyah
+ * leftoverSpace > 140 => add sticker
  */
 function buildJustifiedRowsWithSticker(photoData, containerWidth, targetRowHeight) {
   const rows = [];
   let currentRow = [];
-  let currentWidth = 0;
+  let currentRowWidth = 0;
 
-  for (let i=0; i< photoData.length; i++){
+  for(let i=0; i<photoData.length; i++){
     const { url, ratio } = photoData[i];
     const scaledW = ratio * targetRowHeight;
-    const newW = currentWidth + scaledW;
+    const newW = currentRowWidth + scaledW;
 
-    if (newW > containerWidth && currentRow.length > 0) {
-      // finalize row
-      scaleRow(currentRow, currentWidth, containerWidth);
+    if(newW > containerWidth && currentRow.length>0) {
+      scaleRow(currentRow, currentRowWidth, containerWidth);
       rows.push(currentRow);
-      // new row
       currentRow = [{
         type:"photo",
         url,
@@ -615,7 +615,7 @@ function buildJustifiedRowsWithSticker(photoData, containerWidth, targetRowHeigh
         finalWidth: scaledW,
         finalHeight: targetRowHeight
       }];
-      currentWidth = scaledW;
+      currentRowWidth = scaledW;
     } else {
       currentRow.push({
         type:"photo",
@@ -624,15 +624,14 @@ function buildJustifiedRowsWithSticker(photoData, containerWidth, targetRowHeigh
         finalWidth: scaledW,
         finalHeight: targetRowHeight
       });
-      currentWidth = newW;
+      currentRowWidth = newW;
     }
   }
 
   // leftover row
-  if (currentRow.length>0){
-    const leftoverSpace = containerWidth - currentWidth;
-    // eğer leftoverSpace > 120 + 20 gibi bir pay => sticker
-    if (leftoverSpace > 140) {
+  if(currentRow.length>0){
+    const leftoverSpace = containerWidth - currentRowWidth;
+    if(leftoverSpace>140) {
       currentRow.push({
         type:"sticker",
         finalWidth: leftoverSpace,
@@ -641,28 +640,25 @@ function buildJustifiedRowsWithSticker(photoData, containerWidth, targetRowHeigh
     }
     rows.push(currentRow);
   }
-
   return rows;
 }
 
-/** scaleRow => 
- * rowWidth => containerWidth => ratio => finalWidth *= ratio
- */
 function scaleRow(row, rowWidth, containerWidth) {
   const ratio = containerWidth / rowWidth;
-  row.forEach(item => {
-    item.finalWidth *= ratio;
-    item.finalHeight *= ratio;
+  row.forEach(it=>{
+    it.finalWidth *= ratio;
+    it.finalHeight *= ratio;
   });
 }
 
-/** getImageRatio => w/h */
+/** getImageRatio -> w/h */
 function getImageRatio(url) {
-  return new Promise((resolve) => {
+  return new Promise((resolve)=>{
     const img = new Image();
-    img.onload = () => {
-      resolve(img.naturalWidth / img.naturalHeight);
+    img.onload= ()=>{
+      const r = img.naturalWidth / img.naturalHeight;
+      resolve(r);
     };
-    img.src = url;
+    img.src=url;
   });
 }
